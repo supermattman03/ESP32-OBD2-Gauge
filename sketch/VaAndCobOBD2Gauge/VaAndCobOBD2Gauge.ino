@@ -81,29 +81,19 @@ skip = delay reading 0 - 3; 3 = max delay read
 digit = want to show digit or not
 warn = default warning value
 */
-const String pidConfig[7][9] = {
-  //[pid][data]
-  { "ENG Load", "%", "0104", "2", "0", "100", "0", "0", "80" },      //0 = 0104
-  { "ECT", "`C", "0105", "1", "0", "120", "3", "0", "99" },          //1 = 0105
-  { "MAP", "psi", "010B", "0", "0", "40", "0", "1", "35" },          //2 = 010B
-  { "ENG SPD", "rpm", "010C", "3", "0", "5000", "0", "0", "4000" },  //3 = 010C
-  { "PCM Volt", "volt", "0142", "4", "0", "16", "1", "1", "15" },    //4 = 0142
-#ifdef FORD_T5
-  { "IAT", "`C", "010F", "1", "0", "120", "3", "0", "99" },  //5 = 015C
-#else
-  { "Oil Temp", "`C", "015C", "1", "0", "120", "3", "0", "99" },     //5 = 015C
-#endif
-#ifdef FORD_T5
-  { "TFT", "`C", "221674", "6", "0", "120", "3", "0", "99" }  //6 = 221674 for FORD T5
-#else
-  { "Trans Temp", "`C", "221E1C", "5", "0", "120", "3", "1", "99" }  //6 = 221E1C for FORD T6+
-#endif
-
+const String pidConfig[9][9] = {
+  //[label, unit, PID, ...]
+  { "ENG Load", "%", "0104", "2", "0", "100", "0", "0", "80" },       //0
+  { "Coolant", "`C", "0105", "1", "0", "120", "3", "0", "99" },       //1
+  { "MAP", "psi", "010B", "0", "0", "40", "0", "1", "35" },           //2
+  { "ENG SPD", "rpm", "010C", "3", "0", "5000", "0", "0", "4000" },   //3
+  { "PCM Volt", "volt", "0142", "4", "0", "16", "1", "1", "15" },     //4
+  { "IAT", "`C", "010F", "1", "0", "120", "3", "0", "99" },           //5
+  { "Tank Pressure", "psi", "21C3", "5", "0", "5000", "1", "0", "4500" }, //6  CNG tank pressure
+  { "Fuel Temp", "`C", "21C4", "5", "0", "120", "3", "0", "99" },     //7  Fuel temperature
+  { "Trans Temp", "`C", "21D9", "6", "0", "120", "3", "0", "99" }     //8  CVT fluid temp (Honda GX)
 };
 
-//barometric pressure "0133"  turbo boost = map - bp;
-//hold warning value
-String warningValue[7] = { "80", "99", "35", "4000", "15", "99", "99" };
 
 /*  User configuration here to change display 
       layout 0      layout 1       layout 2     layout 3      layout 4     layout 5
@@ -111,27 +101,31 @@ String warningValue[7] = { "80", "99", "35", "4000", "15", "99", "99" };
     █ 2 █ █ 8 █   █ 2 █  3  4    1  █ 5 █  4   1  2  █ 8 █   1  2  3  4   1  2  3  4
     █ 3 █ █ 9 █   █ 3 █  █  █    █  █ 6 █  █   █  █  █ 9 █   █  █  █  █   █  █  █  █
 
-set up meter here which pid to use on each cell
-0 - engine load
-1 - coolant
-2 - manifold Pressure
-3 - engine Speed
-4 - pcm volt
-5 - oil Temp
-6 - trans Temp
+  set up meter here which pid to use on each cell
+  0 - Engine Load        (0104)
+  1 - Coolant Temp       (0105)
+  2 - Manifold Pressure  (010B)
+  3 - Engine Speed       (010C)
+  4 - PCM Voltage        (0142)
+  5 - Intake Air Temp    (010F)
+  6 - Tank Pressure      (21C3)
+  7 - Fuel Temperature   (21C4)
+  8 - CVT Fluid Temp     (21D9)
 */
 const uint8_t pidInCell[8][7] = {
   //[layout][cellNo]
-  //the last cell must be 3 (engine speed) to check engine off
-  { 0, 2, 3, 1, 5, 6, 4 },  //layout 0 -> 6 cell {load,map,engspd,coolant,oil,tft,pcmvolt
-  { 0, 2, 3, 1, 5, 6, 4 },  //layout 1 -> 6 cell {load,map,engspd,coolant,oil,tft,pcmvolt
-  { 0, 2, 3, 1, 5, 6, 4 },  //layout 2 -> 6 cell {load,map,engspd,coolant,oil,tft,pcmvolt
-  { 1, 5, 6, 3, 2, 4, 4 },  //layout 3 -> 5 cell {cooland,oil,tft,map,pcmvolt,pcmvolt}
-  { 2, 1, 5, 6, 4, 0, 4 },  //layout 4 -> 5 cell {MAP,coolant,oiltemp,tft,pcmvolt,load,pcmvolt}
-  { 2, 0, 1, 5, 6, 4, 4 },  //layout 5 -> 5 cell {MAP,engload,coolant,oiltemp,tft,engload,rpm}
-  { 1, 5, 6, 4, 0, 3, 4 },  //layout 6 -> 4 cell {coolant,oiltemp,tft,pcmvolt,map,endspd,pcmvolt}
-  { 3, 2, 0, 4, 1, 5, 4 },  //layout 7 -> 4 cell {engspd,map,engload,pcmvolt,coolant,oil,pcmvolt}
+  // the last cell must be 3 (engine speed) to check engine off
+  { 0, 2, 3, 1, 5, 8, 4 },  // layout 0 -> {load, map, engspd, coolant, IAT, CVT temp, pcmVolt}
+  { 0, 2, 3, 1, 5, 6, 4 },  // layout 1 -> {load, map, engspd, coolant, IAT, tankPress, pcmVolt}
+  { 0, 2, 3, 1, 5, 7, 4 },  // layout 2 -> {load, map, engspd, coolant, IAT, fuelTemp, pcmVolt}
+  { 1, 5, 8, 3, 2, 4, 4 },  // layout 3 -> {coolant, IAT, CVT temp, engspd, map, pcmVolt}
+  { 2, 1, 5, 6, 4, 0, 4 },  // layout 4 -> {MAP, coolant, IAT, tankPress, pcmVolt, load}
+  { 2, 0, 1, 5, 7, 8, 4 },  // layout 5 -> {MAP, load, coolant, IAT, fuelTemp, CVT temp, pcmVolt}
+  { 1, 5, 6, 8, 0, 3, 4 },  // layout 6 -> {coolant, IAT, tankPress, CVT temp, load, engspd, pcmVolt}
+  { 3, 2, 0, 4, 1, 5, 8 }   // layout 7 -> {engspd, map, load, pcmVolt, coolant, IAT, CVT temp}
 };
+
+
 // User configuration here to change display  >
 
 /*---------------------------*/
@@ -175,7 +169,7 @@ uint8_t btDeviceCount = 0;                                                  //di
 #define BT_DISCOVER_TIME 5000                                               //bluetooth discoery time
 esp_bd_addr_t client_addr = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };         //obdII mac addr
 esp_bd_addr_t recent_client_addr = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  //keep last btaddr in RTC memory
-const String client_name = "OBDII";                                         //adaptor name to search
+const String client_name = "VEEPEAK";                                         //adaptor name to search
 esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;                                  // or ESP_SPP_SEC_ENCRYPT|ESP_SPP_SEC_AUTHENTICATE to request pincode confirmation
 esp_spp_role_t role = ESP_SPP_ROLE_SLAVE;                                   // or ESP_SPP_ROLE_MASTER
 bool foundOBD2 = false;
